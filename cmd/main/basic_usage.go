@@ -1,3 +1,6 @@
+//go:build ctexample
+
+// This standalone example stays out of normal application builds.
 // examples----------------------------------
 // @file      : basic_usage.go
 // @author    : Autumn

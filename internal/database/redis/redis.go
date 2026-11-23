@@ -3,9 +3,10 @@ package redis
 import (
 	"context"
 	"fmt"
-	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -14,13 +15,16 @@ var Client *redis.Client
 func init() {
 	// 创建 Redis 客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", config.GlobalConfig.Redis.IP, config.GlobalConfig.Redis.Port),
+		Addr:     config.GetRedisAddr(),
 		Password: config.GlobalConfig.Redis.Password,
 		DB:       0,
 	})
 
-	// 测试连接
-	if err := client.Ping(context.Background()).Err(); err != nil {
+	// Bound startup probing and close the client if the probe fails.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
 		logger.Error(fmt.Sprintf("failed to connect to Redis: %v", err))
 		return
 	}

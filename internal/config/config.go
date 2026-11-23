@@ -2,8 +2,11 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/utils"
@@ -271,16 +274,18 @@ func handlePluginKey() error {
 
 // GetMongoURI 获取MongoDB连接URI
 func GetMongoURI() string {
-	uri := GlobalConfig.MongoDB.IP + ":" + string(GlobalConfig.MongoDB.Port)
-	if GlobalConfig.MongoDB.Username != "" && GlobalConfig.MongoDB.Password != "" {
-		uri = "mongodb://" + GlobalConfig.MongoDB.Username + ":" + GlobalConfig.MongoDB.Password + "@" + uri
+	// Build a valid URI for unauthenticated servers and IPv6 endpoints too.
+	db := GlobalConfig.MongoDB
+	uri := url.URL{Scheme: "mongodb", Host: net.JoinHostPort(db.IP, strconv.Itoa(db.Port))}
+	if db.Username != "" {
+		uri.User = url.UserPassword(db.Username, db.Password)
 	}
-	return uri
+	return uri.String()
 }
 
 // GetRedisAddr 获取Redis连接地址
 func GetRedisAddr() string {
-	return GlobalConfig.Redis.IP + ":" + GlobalConfig.Redis.Port
+	return net.JoinHostPort(GlobalConfig.Redis.IP, GlobalConfig.Redis.Port)
 }
 
 // GetPluginKey 获取插件密钥

@@ -11,19 +11,7 @@ const defaultRequestInterceptors = (config: InternalAxiosRequestConfig) => {
   ) {
     config.data = qs.stringify(config.data)
   }
-  if (config.method === 'get' && config.params) {
-    let url = config.url as string
-    url += '?'
-    const keys = Object.keys(config.params)
-    for (const key of keys) {
-      if (config.params[key] !== void 0 && config.params[key] !== null) {
-        url += `${key}=${encodeURIComponent(config.params[key])}&`
-      }
-    }
-    url = url.substring(0, url.length - 1)
-    config.params = {}
-    config.url = url
-  }
+  // Axios appends params after existing query strings and handles escaping.
   return config
 }
 

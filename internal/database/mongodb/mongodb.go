@@ -3,52 +3,57 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"net/url"
+	"net"
 	"strconv"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var Client *mongo.Client
 var DB *mongo.Database
+var available bool
+
+// Available reports whether the database passed its startup probe.
+func Available() bool { return available }
 
 func init() {
 	// 设置连接超时
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	username := url.QueryEscape(config.GlobalConfig.MongoDB.Username)
-	password := url.QueryEscape(config.GlobalConfig.MongoDB.Password)
-
-	uri := config.GlobalConfig.MongoDB.IP + ":" + strconv.Itoa(config.GlobalConfig.MongoDB.Port)
-	if username != "" && password != "" {
-		uri = "mongodb://" + username + ":" + password + "@" + uri
+	// Pass credentials separately so connection diagnostics can use the host safely.
+	db := config.GlobalConfig.MongoDB
+	host := net.JoinHostPort(db.IP, strconv.Itoa(db.Port))
+	clientOptions := options.Client().SetHosts([]string{host})
+	if db.Username != "" {
+		clientOptions.SetAuth(options.Credential{Username: db.Username, Password: db.Password})
 	}
-
-	// 设置客户端选项
-	clientOptions := options.Client().ApplyURI(uri)
 
 	// 连接到 MongoDB
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to connect %v to MongoDB: %v", uri, err))
+		logger.Error(fmt.Sprintf("failed to connect %v to MongoDB: %v", host, err))
 		return
 	}
 
-	// 检查连接
+	// Other packages create collection handles during init, even when the server is down.
+	Client = client
+	DB = client.Database(db.Database)
+
 	if err = client.Ping(ctx, nil); err != nil {
 		logger.Error(fmt.Sprintf("failed to ping MongoDB: %v", err))
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cleanupCancel()
+		_ = client.Disconnect(cleanupCtx)
 		return
 	}
 
-	Client = client
-	DB = client.Database(config.GlobalConfig.MongoDB.Database)
-
+	available = true
 	logger.Info("MongoDB connected successfully")
 	return
 }

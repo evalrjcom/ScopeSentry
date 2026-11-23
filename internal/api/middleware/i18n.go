@@ -5,27 +5,25 @@ import (
 	"golang.org/x/text/language"
 )
 
-// I18nMiddleware 国际化中间件
+var supportedLanguages = language.NewMatcher([]language.Tag{
+	language.SimplifiedChinese,
+	language.AmericanEnglish,
+})
+
+// I18nMiddleware selects the best supported language for the response.
 func I18nMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从请求头获取语言
-		lang := c.GetHeader("Accept-Language")
-		if lang == "" {
-			lang = "zh" // 默认中文
-		}
-
-		// 解析语言标签
-		tag, err := language.Parse(lang)
+		// Browsers send weighted language lists. Choose a supported locale
+		// and use its canonical tag for translation and Content-Language.
+		preferred, _, err := language.ParseAcceptLanguage(c.GetHeader("Accept-Language"))
 		if err != nil {
-			tag = language.Chinese
+			preferred = nil
 		}
-
-		// 设置语言到上下文
-		c.Set("language", tag.String())
-
-		// 设置响应头
-		c.Header("Content-Language", tag.String())
-
+		_, index, _ := supportedLanguages.Match(preferred...)
+		locale := []string{"zh-CN", "en-US"}[index]
+		c.Set("language", locale)
+		c.Writer.Header().Add("Vary", "Accept-Language")
+		c.Header("Content-Language", locale)
 		c.Next()
 	}
 }

@@ -11,6 +11,7 @@ package ct
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -350,7 +351,8 @@ func (h *ErrorEventHandler) HandleEvent(event models.Event) error {
 						h.sdk.handleError(fmt.Errorf("错误回调执行失败: %v", r), nil)
 					}
 				}()
-				cb(fmt.Errorf(errorEvent.ErrorMessage), map[string]interface{}{
+				// Preserve literal percent signs in the reported error text.
+				cb(errors.New(errorEvent.ErrorMessage), map[string]interface{}{
 					"error_type": errorEvent.ErrorType,
 					"severity":   errorEvent.Severity,
 				})

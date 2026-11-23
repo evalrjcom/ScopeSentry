@@ -61,7 +61,10 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
         symbolId: 'icon-[dir]-[name]',
         svgoOptions: true
       }),
-      PurgeIcons(),
+      // Search application templates only. The default globs also walk dependencies.
+      PurgeIcons({
+        content: ['index.html', 'src/**/*.{html,pug,vue,js,jsx,ts,tsx}']
+      }),
       // viteMockServe({
       //   ignore: /^\_/,
       //   mockPath: 'mock',

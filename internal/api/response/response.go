@@ -2,11 +2,11 @@ package response
 
 import (
 	"fmt"
-	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"net/http"
 	"runtime"
 
 	"github.com/Autumn-27/ScopeSentry/internal/i18n"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -57,7 +57,8 @@ type PageResponse struct {
 
 // getLocale 获取请求的语言
 func getLocale(c *gin.Context) string {
-	locale := c.GetHeader("Accept-Language")
+	// Use the same negotiated locale as the Content-Language response header.
+	locale := c.GetString("language")
 	if locale == "" {
 		locale = "zh-CN" // 默认中文
 	}
@@ -104,21 +105,23 @@ func InternalServerError(c *gin.Context, msgKey string, err error) {
 	callerInfo := ""
 	if ok {
 		fn := runtime.FuncForPC(pc)
-		callerInfo = fmt.Sprintf("%s:%d (%s)", file, line, fn.Name())
+		callerInfo = fmt.Sprintf("%s:%d", file, line)
+		if fn != nil {
+			callerInfo += " (" + fn.Name() + ")"
+		}
 	}
 
+	// Keep internal diagnostic details in server logs.
 	logger.Error(fmt.Sprintf("InternalServerError at %s: %v", callerInfo, err))
 	c.JSON(http.StatusInternalServerError, Response{
 		Code:    http.StatusInternalServerError,
 		Message: i18n.Translate(getLocale(c), msgKey),
-		Data:    fmt.Sprintf("%v", err),
 	})
 }
 
-func Unauthorized(c *gin.Context, msgKey string, err error) {
+func Unauthorized(c *gin.Context, msgKey string, _ error) {
 	c.JSON(http.StatusUnauthorized, Response{
 		Code:    http.StatusUnauthorized,
 		Message: i18n.Translate(getLocale(c), msgKey),
-		Data:    fmt.Sprintf("%v", err),
 	})
 }

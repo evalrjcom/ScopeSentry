@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"github.com/Autumn-27/ScopeSentry/internal/api/response"
-	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"strings"
 
+	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/config"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
@@ -23,8 +23,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查Bearer token格式
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		parts := strings.Fields(authHeader)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			response.Unauthorized(c, "Invalid authorization header format", nil)
 			c.Abort()
 			return
@@ -32,13 +32,14 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		// 解析token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		// Match the issuer's signing algorithm and require the expiry it sets.
+		token, err := jwt.Parse(tokenString, func(*jwt.Token) (interface{}, error) {
+			secret := config.GlobalConfig.JWT.Secret
+			if secret == "" {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(config.GlobalConfig.JWT.Secret), nil
-		})
+			return []byte(secret), nil
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 
 		if err != nil {
 			logger.Error("Failed to parse token", zap.Error(err))
