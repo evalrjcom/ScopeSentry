@@ -1,9 +1,7 @@
 package task
 
 import (
-	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
-	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/template"
 	"github.com/gin-gonic/gin"
@@ -70,7 +68,7 @@ func TemplateDetail(c *gin.Context) {
 
 	result, err := templateService.Detail(c, req.ID)
 	if err != nil {
-		logger.Error(fmt.Sprintf("TemplateDetail error", err))
+		// InternalServerError records the underlying error once.
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

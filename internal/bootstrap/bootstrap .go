@@ -3,11 +3,13 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"github.com/Autumn-27/ScopeSentry/internal/config"
-	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
-	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"time"
+
+	"github.com/Autumn-27/ScopeSentry/internal/config"
+	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
+	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // StartupEvent 启动事件处理函数
@@ -35,25 +37,16 @@ func ExecuteStartupEvents() error {
 
 // 注册默认的启动事件
 func init() {
-	// 加载配置
-	//RegisterStartupEvent(func(ctx context.Context) error {
-	//	return config.Load()
-	//})
-
-	//// 初始化日志
-	//RegisterStartupEvent(func(ctx context.Context) error {
-	//	return logger.Init()
-	//})
-
-	// 初始化MongoDB
-	//RegisterStartupEvent(func(ctx context.Context) error {
-	//	return mongodb.Init()
-	//})
-
-	// 初始化Redis
-	//RegisterStartupEvent(func(ctx context.Context) error {
-	//	return redis.Init()
-	//})
+	// Database packages can leave clients unset after a failed startup probe.
+	RegisterStartupEvent(func(context.Context) error {
+		if !mongodb.Available() {
+			return fmt.Errorf("MongoDB is unavailable")
+		}
+		if redis.Client == nil {
+			return fmt.Errorf("Redis is unavailable")
+		}
+		return nil
+	})
 
 	RegisterStartupEvent(func(ctx context.Context) error {
 		return Banner()

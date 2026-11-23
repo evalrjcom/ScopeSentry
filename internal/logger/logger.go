@@ -37,10 +37,11 @@ func Fatal(msg string, fields ...zap.Field) {
 
 func init() {
 	// 解析日志级别
-	var level zapcore.Level
+	level := zapcore.InfoLevel
 	if err := level.UnmarshalText([]byte(config.GlobalConfig.Log.Level)); err != nil {
-		fmt.Println(err)
-		return
+		// Keep console logging available when the configured level is invalid.
+		fmt.Fprintln(os.Stderr, err)
+		level = zapcore.InfoLevel
 	}
 
 	// 加载时区
@@ -83,18 +84,16 @@ func init() {
 	if config.GlobalConfig.Log.Filename != "" {
 		logDir := filepath.Dir(config.GlobalConfig.Log.Filename)
 		if err := os.MkdirAll(logDir, 0755); err != nil {
-			fmt.Println(err)
-			return
+			// Leave the console core active if the log directory is unusable.
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fileWriter := &lumberjack.Logger{
+				Filename: config.GlobalConfig.Log.Filename,
+				MaxSize:  300, // 单位 MB
+				Compress: true,
+			}
+			cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(fileWriter), level))
 		}
-
-		fileWriter := &lumberjack.Logger{
-			Filename: config.GlobalConfig.Log.Filename,
-			MaxSize:  300, // 单位 MB
-			Compress: true,
-		}
-
-		fileCore := zapcore.NewCore(consoleEncoder, zapcore.AddSync(fileWriter), level)
-		cores = append(cores, fileCore)
 	}
 
 	// 合并所有输出
